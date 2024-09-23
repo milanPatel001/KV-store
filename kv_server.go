@@ -7,30 +7,12 @@ import (
 	"net"
 	"os"
 	"strings"
-	"sync"
 
 	"github.com/joho/godotenv"
+
+	"prac/handlers"
+	"prac/utils"
 )
-
-type Statement struct {
-	Command string
-	Args    []string
-}
-
-type Connection struct {
-	Id               string
-	IP               string
-	TransactionQueue []Statement
-	TransactionFlag  bool
-}
-
-type PlainCache struct {
-	Mutex sync.Mutex
-	Data  map[string]string
-}
-
-var connectionMap = make(map[string]*Connection)
-var plainCache = PlainCache{Data: make(map[string]string)}
 
 func main() {
 	err := godotenv.Load()
@@ -70,10 +52,11 @@ func handleConnection(c net.Conn) {
 	fmt.Printf("Serving %s\n", c.RemoteAddr().String())
 	defer c.Close()
 
-	id, _ := GenerateRandomId(6)
+	id, _ := utils.GenerateRandomId(6)
 
-	connObj := Connection{IP: c.RemoteAddr().String(), Id: id}
-	connectionMap[c.RemoteAddr().String()] = &connObj
+	connObj := handlers.Connection{IP: c.RemoteAddr().String(), Id: id}
+	handlers.ConnectionMap[c.RemoteAddr().String()] = &connObj
+
 	buffer := make([]byte, 1024)
 
 	for {
@@ -108,7 +91,7 @@ func handleConnection(c net.Conn) {
 		fmt.Print(args)
 		fmt.Print("\n")
 
-		SwitchCases(command, args, &connObj, c)
+		handlers.SwitchCases(command, args, &connObj, c)
 	}
 
 }
