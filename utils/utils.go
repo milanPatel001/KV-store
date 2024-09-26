@@ -2,6 +2,8 @@ package utils
 
 import (
 	"crypto/rand"
+	"encoding/binary"
+	"math"
 	"math/big"
 )
 
@@ -29,4 +31,19 @@ func GenerateRandomId(length int) (string, error) {
 		result[i] = charset[num.Int64()]
 	}
 	return string(result), nil
+}
+
+func RandomFloat64() (float64, error) {
+	// Generate 8 random bytes
+	var buf [8]byte
+	_, err := rand.Read(buf[:])
+	if err != nil {
+		return 0, err
+	}
+
+	// Convert bytes to uint64 and then to a float64
+	randUint := binary.BigEndian.Uint64(buf[:])
+
+	// Normalize the result to be in the range [0, 1)
+	return float64(randUint) / float64(math.MaxUint64), nil
 }
