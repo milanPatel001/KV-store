@@ -2,12 +2,12 @@
 ### Supports
 - GET
 - SET
+- SET with ttl
 - DEL
 - Transaction - BEGIN, COMMIT and DISCARD
 - Rollback for transaction
 
 ### Will Add
-- SET with ttl
 - Multiple caches (default 16)
 - Bloom Filter
 - Double Ended Queue
