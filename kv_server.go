@@ -1,12 +1,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log"
 	"net"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/joho/godotenv"
 
@@ -17,7 +19,7 @@ import (
 func main() {
 	err := godotenv.Load()
 	if err != nil {
-		log.Fatal("Error loading .env file")
+		log.Fatal(err)
 	}
 
 	PORT := os.Getenv("PORT")
@@ -28,14 +30,21 @@ func main() {
 		PORT = ":" + PORT
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+
 	l, err := net.Listen("tcp4", PORT)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	defer l.Close()
+	defer func() {
+		l.Close()
+		cancel()
+	}()
 
 	fmt.Println("Server running on Port " + PORT)
+
+	go handleSkipListExpiry(ctx)
 
 	for {
 		c, err := l.Accept()
@@ -43,6 +52,7 @@ func main() {
 			fmt.Println(err)
 			return
 		}
+
 		go handleConnection(c)
 	}
 
@@ -93,5 +103,27 @@ func handleConnection(c net.Conn) {
 
 		handlers.SwitchCases(command, args, &connObj, c)
 	}
+}
 
+func handleSkipListExpiry(ctx context.Context) {
+	ticker := time.NewTicker(60 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			deletedKeys := handlers.PlainCache.SkipList.DeleteExpiredKeys()
+
+			handlers.PlainCache.Mutex.Lock()
+
+			for _, key := range deletedKeys {
+				delete(handlers.PlainCache.Data, key)
+			}
+
+			handlers.PlainCache.Mutex.Unlock()
+
+		case <-ctx.Done():
+			return
+		}
+	}
 }

@@ -2,9 +2,13 @@ package handlers
 
 import (
 	"fmt"
+	"math"
 	"net"
+	"prac/utils"
+	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 type Statement struct {
@@ -19,14 +23,21 @@ type Connection struct {
 	TransactionFlag  bool
 }
 
+type CacheItem struct {
+	Val       string
+	CanExpire bool
+	TTL       int
+}
+
 type Cache struct {
 	Mutex            sync.Mutex
 	TransactionMutex sync.Mutex
-	Data             map[string]string
+	Data             map[string]CacheItem
+	SkipList         *utils.SkipList
 }
 
 var ConnectionMap = make(map[string]*Connection)
-var PlainCache = Cache{Data: make(map[string]string)}
+var PlainCache = Cache{Data: make(map[string]CacheItem), SkipList: utils.CreateSkipList()}
 
 func SwitchCases(command string, args []string, connectionObj *Connection, conn net.Conn) {
 
@@ -74,8 +85,8 @@ func CommandHandler(command string, args []string) (string, error) {
 		return ">> " + val, nil
 
 	case "DEL":
-		err := DelHandler(args)
-		if err != nil {
+
+		if err := DelHandler(args); err != nil {
 			return "", err
 		}
 
@@ -93,11 +104,15 @@ func DelHandler(args []string) error {
 	PlainCache.Mutex.Lock()
 	defer PlainCache.Mutex.Unlock()
 
-	if _, ok := PlainCache.Data[args[0]]; !ok {
+	item, exist := PlainCache.Data[args[0]]
+
+	if !exist {
 		return fmt.Errorf("DEL %s : Key doesn't exist !!!", args[0])
 	}
 
 	delete(PlainCache.Data, args[0])
+
+	PlainCache.SkipList.Delete(args[0], item.TTL)
 
 	return nil
 }
@@ -112,6 +127,16 @@ func SetHandler(args []string) error {
 	}
 
 	var value string = args[1]
+	var ttl int
+	if len(args) > 2 {
+		val, err := strconv.Atoi(args[2])
+
+		if err != nil {
+			ttl = 0
+		} else {
+			ttl = val
+		}
+	}
 
 	if args[1][0] == '"' {
 		for i := 2; i < len(args); i++ {
@@ -121,8 +146,36 @@ func SetHandler(args []string) error {
 			}
 		}
 	}
+
+	canExpire := false
+	var expiry int
+
+	if ttl > 0 {
+		canExpire = true
+
+		now := int(time.Now().Unix())
+
+		if ttl > math.MaxInt32-now-1 {
+			expiry = math.MaxInt32 - 1
+		} else {
+			expiry = now + ttl
+		}
+
+	}
+
 	PlainCache.Mutex.Lock()
-	PlainCache.Data[args[0]] = value
+	item, exist := PlainCache.Data[args[0]]
+	if exist {
+		// NOTE: Seperate command for changing ttl, so don't bother with it here
+		PlainCache.Data[args[0]] = CacheItem{Val: value, CanExpire: item.CanExpire, TTL: item.TTL}
+	} else {
+		PlainCache.Data[args[0]] = CacheItem{Val: value, CanExpire: canExpire, TTL: expiry}
+
+		if canExpire {
+			PlainCache.SkipList.Insert(args[0], ttl)
+		}
+	}
+
 	PlainCache.Mutex.Unlock()
 
 	return nil
@@ -134,12 +187,12 @@ func GetHandler(args []string) (string, error) {
 	}
 
 	PlainCache.Mutex.Lock()
-	val, ok := PlainCache.Data[args[0]]
+	item, exist := PlainCache.Data[args[0]]
 	PlainCache.Mutex.Unlock()
 
-	if !ok {
+	if !exist {
 		return "", fmt.Errorf("GET %v: Key doesn't exist!!!", args[0])
 	}
 
-	return val, nil
+	return item.Val, nil
 }

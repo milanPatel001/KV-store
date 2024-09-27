@@ -9,27 +9,27 @@ func TestDelHandler(t *testing.T) {
 	tests := []struct {
 		name        string
 		args        []string
-		initialData map[string]string
+		initialData map[string]handlers.CacheItem
 		expectError bool
 		expectedErr string
 	}{
 		{
 			name:        "Key exists, successful deletion",
 			args:        []string{"testKey"},
-			initialData: map[string]string{"testKey": "testValue"},
+			initialData: map[string]handlers.CacheItem{"testKey": {Val: "testValue"}},
 			expectError: false,
 		},
 		{
 			name:        "Key doesn't exist",
 			args:        []string{"nonExistentKey"},
-			initialData: map[string]string{},
+			initialData: map[string]handlers.CacheItem{},
 			expectError: true,
 			expectedErr: "DEL nonExistentKey : Key doesn't exist !!!",
 		},
 		{
 			name:        "Missing Key",
 			args:        []string{},
-			initialData: map[string]string{},
+			initialData: map[string]handlers.CacheItem{},
 			expectError: true,
 			expectedErr: "DEL : Missing Key",
 		},
@@ -101,7 +101,7 @@ func TestSetHandler(t *testing.T) {
 				if err != nil {
 					t.Errorf("Did not expect an error but got: %v", err)
 				}
-				if handlers.PlainCache.Data[test.input[0]] != test.input[1] {
+				if handlers.PlainCache.Data[test.input[0]].Val != test.input[1] {
 					t.Errorf("Expected value %v, but got %v", test.input[1], handlers.PlainCache.Data[test.input[0]])
 				}
 			}
@@ -113,7 +113,7 @@ func TestGetHandler(t *testing.T) {
 	tests := []struct {
 		name        string
 		input       []string
-		initialData map[string]string
+		initialData map[string]handlers.CacheItem
 		expectError bool
 		expectedErr string
 		expectedVal string
@@ -121,21 +121,21 @@ func TestGetHandler(t *testing.T) {
 		{
 			name:        "Successful Get",
 			input:       []string{"testKey"},
-			initialData: map[string]string{"testKey": "testValue"},
+			initialData: map[string]handlers.CacheItem{"testKey": {Val: "testValue"}},
 			expectError: false,
 			expectedVal: "testValue",
 		},
 		{
 			name:        "Key doesn't exist",
 			input:       []string{"nonExistentKey"},
-			initialData: map[string]string{},
+			initialData: map[string]handlers.CacheItem{},
 			expectError: true,
 			expectedErr: "GET nonExistentKey: Key doesn't exist!!!",
 		},
 		{
 			name:        "Missing Key",
 			input:       []string{},
-			initialData: map[string]string{},
+			initialData: map[string]handlers.CacheItem{},
 			expectError: true,
 			expectedErr: "GET : Missing Key",
 		},

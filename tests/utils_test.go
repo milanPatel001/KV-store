@@ -6,6 +6,23 @@ import (
 	"testing"
 )
 
+func TestExpiryDeletion(t *testing.T) {
+	skipList := buildSkipList()
+
+	skipList.DeleteExpiredKeys()
+
+	if skipList.NumOfElements != 1 {
+		t.Error("DeleteExpiredKey is not working properly !!!")
+	}
+
+	skipList.DeleteExpiredKeys()
+
+	if skipList.NumOfElements != 1 {
+		t.Error("DeleteExpiredKey is not working properly !!!")
+	}
+
+}
+
 func TestFindUpperPrevElem(t *testing.T) {
 	skipList := buildSkipList()
 
@@ -59,7 +76,7 @@ func TestSkipListFindEntry(t *testing.T) {
 	node2 := &utils.Node{Data: utils.NodeData{Key: "B", TTL: 17}}
 	node3 := &utils.Node{Data: utils.NodeData{Key: "C", TTL: 20}}
 	node4 := &utils.Node{Data: utils.NodeData{Key: "D", TTL: 25}}
-	node5 := &utils.Node{Data: utils.NodeData{Key: "E", TTL: 44}}
+	node5 := &utils.Node{Data: utils.NodeData{Key: "E", TTL: 1787464175}}
 
 	result := skipList.FindEntry("A", 12)
 	compareNodes(t, node1, result)
@@ -73,7 +90,7 @@ func TestSkipListFindEntry(t *testing.T) {
 	result = skipList.FindEntry("D", 25)
 	compareNodes(t, node4, result)
 
-	result = skipList.FindEntry("E", 44)
+	result = skipList.FindEntry("E", 1787464175)
 	compareNodes(t, node5, result)
 
 	result = skipList.FindEntry("F", 27)
@@ -135,7 +152,7 @@ func buildSkipList() *utils.SkipList {
 	node4 := &utils.Node{Data: utils.NodeData{Key: "D", TTL: 25}}
 	node42 := &utils.Node{Data: utils.NodeData{Key: "D", TTL: 25}}
 
-	node5 := &utils.Node{Data: utils.NodeData{Key: "E", TTL: 44}}
+	node5 := &utils.Node{Data: utils.NodeData{Key: "E", TTL: 1787464175}} // was 44
 
 	skipList.Head.Up = nodeH1
 	nodeH1.Down = skipList.Head

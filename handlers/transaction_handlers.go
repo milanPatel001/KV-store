@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"prac/utils"
+	"strconv"
 )
 
 func TransactionHandler(command string, args []string, connectionObj *Connection) (string, error) {
@@ -62,12 +63,12 @@ func CommitHandler(statements []Statement) ([]string, error) {
 
 	for _, statement := range statements {
 
-		var previousVal string
+		var previousItem CacheItem
 		var keyExists bool
 
 		if (statement.Command == "DEL" && len(statement.Args) != 0) || (statement.Command == "SET" && len(statement.Args) == 2) {
 			PlainCache.Mutex.Lock()
-			previousVal, keyExists = PlainCache.Data[statement.Args[0]]
+			previousItem, keyExists = PlainCache.Data[statement.Args[0]]
 			PlainCache.Mutex.Unlock()
 		}
 
@@ -89,12 +90,12 @@ func CommitHandler(statements []Statement) ([]string, error) {
 		// TODO : expand this properly for other commands
 		if statement.Command == "SET" {
 			if keyExists {
-				rollbackStatement = Statement{"SET", []string{statement.Args[0], previousVal}}
+				rollbackStatement = Statement{"SET", []string{statement.Args[0], previousItem.Val, strconv.Itoa(previousItem.TTL)}}
 			} else {
 				rollbackStatement = Statement{"DEL", statement.Args}
 			}
 		} else if statement.Command == "DEL" {
-			rollbackStatement = Statement{"SET", []string{statement.Args[0], previousVal}}
+			rollbackStatement = Statement{"SET", []string{statement.Args[0], previousItem.Val, strconv.Itoa(previousItem.TTL)}}
 		}
 
 		rollBackLog = utils.Prepend(rollBackLog, rollbackStatement)

@@ -47,3 +47,16 @@ func RandomFloat64() (float64, error) {
 	// Normalize the result to be in the range [0, 1)
 	return float64(randUint) / float64(math.MaxUint64), nil
 }
+
+/**
+Ideas for TTL:
+** Passive check is mandatory
+
+1) Hashmap ttls: id->index (index in sorted array) (for avoiding plainCache traversal and for constant removal) and
+sorted static array of 100 to store closest ttls. Then a goroutine that will check that array's first elem periodically.
+
+2) Periodic check random 20 keys from ttl hashmap just like redis.
+
+3) Skip list for storing in ordered fashion. That's it.
+
+*/

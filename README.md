@@ -15,5 +15,5 @@
 - Help for all the available commands
 - Geospatial Index
 - Sorted Sets
-- Pub/Sub Channels
+- Pub/Sub Channels (non-durable)
 etc...

@@ -3,6 +3,8 @@ package utils
 import (
 	"fmt"
 	"math"
+	"sync"
+	"time"
 )
 
 type NodeData struct {
@@ -23,6 +25,7 @@ type SkipList struct {
 	Tail          *Node
 	NumOfElements int
 	Height        int
+	mu            sync.RWMutex
 }
 
 // -1 <-> max
@@ -36,36 +39,6 @@ func CreateSkipList() *SkipList {
 	return &SkipList{Head: HeadNode, Tail: TailNode}
 }
 
-// Returns the entry. If nothing is matched, returns the immediate smaller element in the lowest level
-func (skipList *SkipList) FindEntry(key string, ttl int) *Node {
-	node := NodeData{key, ttl}
-
-	current := skipList.Head
-
-	var path string
-
-	for current != nil && current.Data.Key != "INF" {
-		path += current.Data.Key + " "
-		if current.Data.Compare(node) == 0 {
-			return current
-		}
-
-		// Right's data bigger than search node
-		if current.Right.Data.Compare(node) == -1 {
-			// we are at the lowest level
-			if current.Down == nil {
-				break
-			}
-			current = current.Down
-		} else {
-			current = current.Right
-		}
-	}
-
-	//fmt.Println(path)
-	return current
-}
-
 func (skipList *SkipList) Search(key string, ttl int) bool {
 	/*
 			17
@@ -75,6 +48,10 @@ func (skipList *SkipList) Search(key string, ttl int) bool {
 		 12	17 20 25 31 38 39 44 50 55
 
 	*/
+
+	skipList.mu.RLock()
+	defer skipList.mu.RUnlock()
+
 	node := skipList.FindEntry(key, ttl)
 	//fmt.Println(node)
 	if node.Data.Key == key {
@@ -86,6 +63,9 @@ func (skipList *SkipList) Search(key string, ttl int) bool {
 }
 
 func (skipList *SkipList) Insert(key string, ttl int) error {
+
+	skipList.mu.Lock()
+	defer skipList.mu.Unlock()
 
 	prevNode := skipList.FindEntry(key, ttl)
 
@@ -119,7 +99,7 @@ func (skipList *SkipList) Insert(key string, ttl int) error {
 
 		// Create new level
 		if currentLevel >= skipList.Height {
-			fmt.Println("CUrrent Level Exceeded")
+			//fmt.Println("CUrrent Level Exceeded")
 			skipList.Head.Up = &Node{Data: NodeData{"-INF", -1}}
 			skipList.Head.Up.Down = skipList.Head
 
@@ -144,7 +124,7 @@ func (skipList *SkipList) Insert(key string, ttl int) error {
 
 			// or Create duplicate node in upper level
 		} else {
-			fmt.Println("Find Upper Prev Elem Entered")
+			//fmt.Println("Find Upper Prev Elem Entered")
 			prevNode = FindUpperLevelPrevElem(prevNode)
 			nextNode = prevNode.Right
 
@@ -167,6 +147,9 @@ func (skipList *SkipList) Insert(key string, ttl int) error {
 }
 
 func (skipList *SkipList) Delete(key string, ttl int) error {
+	skipList.mu.Lock()
+	defer skipList.mu.Unlock()
+
 	node := skipList.FindEntry(key, math.MaxInt32-1)
 
 	if node.Data.Key != key {
@@ -192,12 +175,63 @@ func (skipList *SkipList) Delete(key string, ttl int) error {
 		curr = down
 	}
 
+	skipList.NumOfElements--
+
 	return nil
 
 }
 
-func (skipList *SkipList) Update(key string, newTTL int) {
+func (skipList *SkipList) DeleteExpiredKeys() []string {
+	skipList.mu.Lock()
+	defer skipList.mu.Unlock()
 
+	curr := skipList.Head
+
+	// Reach to Base Level of Head
+	for curr.Down != nil {
+		curr = curr.Down
+	}
+
+	curr = curr.Right
+
+	var deletedKeys []string
+
+	for curr != nil && curr.Data.Key != "INF" {
+		if int(time.Now().Unix()) < curr.Data.TTL {
+			break
+		}
+
+		deletedKeys = append(deletedKeys, curr.Data.Key)
+
+		nextBase := curr.Right
+
+		for curr != nil {
+			next := curr.Right
+			prev := curr.Left
+
+			prev.Right = next
+			next.Left = prev
+
+			curr.Right = nil
+			curr.Left = nil
+			curr.Down = nil
+
+			curr = curr.Up
+		}
+
+		skipList.NumOfElements--
+
+		// NOTE: tower cleanup will be handled by garbage collector
+
+		curr = nextBase
+	}
+
+	return deletedKeys
+}
+
+func (skipList *SkipList) Update(key string, newTTL int) {
+	skipList.mu.Lock()
+	defer skipList.mu.Unlock()
 }
 
 func FindUpperLevelPrevElem(prevNode *Node) *Node {
@@ -216,6 +250,36 @@ func FindUpperLevelPrevElem(prevNode *Node) *Node {
 	}
 
 	return ptr
+}
+
+// Returns the entry. If nothing is matched, returns the immediate smaller element in the lowest level
+func (skipList *SkipList) FindEntry(key string, ttl int) *Node {
+	node := NodeData{key, ttl}
+
+	current := skipList.Head
+
+	var path string
+
+	for current != nil && current.Data.Key != "INF" {
+		path += current.Data.Key + " "
+		if current.Data.Compare(node) == 0 {
+			return current
+		}
+
+		// Right's data bigger than search node
+		if current.Right.Data.Compare(node) == -1 {
+			// we are at the lowest level
+			if current.Down == nil {
+				break
+			}
+			current = current.Down
+		} else {
+			current = current.Right
+		}
+	}
+
+	//fmt.Println(path)
+	return current
 }
 
 func (a NodeData) Compare(b NodeData) int {
@@ -245,7 +309,10 @@ func (a NodeData) Compare(b NodeData) int {
 	return 1
 }
 
-func (skipList SkipList) Print() {
+func (skipList *SkipList) Print() {
+	skipList.mu.RLock()
+	defer skipList.mu.RUnlock()
+
 	currentHead := skipList.Head
 	currentLevel := skipList.Height
 

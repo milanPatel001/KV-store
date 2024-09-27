@@ -11,9 +11,9 @@ import (
 )
 
 func main() {
-	err := godotenv.Load()
+	err := godotenv.Load("../.env")
 	if err != nil {
-		log.Fatal("Error loading .env file")
+		log.Fatal(err)
 	}
 
 	ADDR := os.Getenv("ADDR")
@@ -32,7 +32,7 @@ func main() {
 	scanner := bufio.NewScanner(os.Stdin)
 	fmt.Println("CONNECTED TO KV SERVER...")
 	for {
-		fmt.Print("\n$ ")
+		fmt.Print("\n>>> ")
 
 		if !scanner.Scan() {
 			break
