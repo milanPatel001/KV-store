@@ -33,11 +33,11 @@ type Cache struct {
 	Mutex            sync.Mutex
 	TransactionMutex sync.Mutex
 	Data             map[string]CacheItem
-	SkipList         *utils.SkipList
+	SkipList         *utils.TTLSkipList
 }
 
 var ConnectionMap = make(map[string]*Connection)
-var PlainCache = Cache{Data: make(map[string]CacheItem), SkipList: utils.CreateSkipList()}
+var PlainCache = Cache{Data: make(map[string]CacheItem), SkipList: utils.CreateTTLSkipList()}
 
 func SwitchCases(command string, args []string, connectionObj *Connection, conn net.Conn) {
 
@@ -172,7 +172,7 @@ func SetHandler(args []string) error {
 		PlainCache.Data[args[0]] = CacheItem{Val: value, CanExpire: canExpire, TTL: expiry}
 
 		if canExpire {
-			PlainCache.SkipList.Insert(args[0], ttl)
+			PlainCache.SkipList.Insert(args[0], expiry)
 		}
 	}
 

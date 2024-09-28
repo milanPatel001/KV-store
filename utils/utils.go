@@ -1,10 +1,12 @@
 package utils
 
 import (
+	"cmp"
 	"crypto/rand"
 	"encoding/binary"
 	"math"
 	"math/big"
+	"reflect"
 )
 
 func Prepend[T any](x []T, y T) []T {
@@ -46,6 +48,35 @@ func RandomFloat64() (float64, error) {
 
 	// Normalize the result to be in the range [0, 1)
 	return float64(randUint) / float64(math.MaxUint64), nil
+}
+
+func SetMaxValue[T cmp.Ordered]() T {
+
+	typ := reflect.TypeFor[T]()
+
+	maxs := [...]any{
+		reflect.Int:   math.MaxInt,
+		reflect.Int8:  math.MaxInt8,
+		reflect.Int16: math.MaxInt16,
+		reflect.Int32: math.MaxInt32,
+		reflect.Int64: math.MaxInt64,
+
+		reflect.Uint:   uint(math.MaxUint),
+		reflect.Uint8:  math.MaxUint8,
+		reflect.Uint16: math.MaxUint16,
+		reflect.Uint32: math.MaxUint32,
+		reflect.Uint64: uint64(math.MaxUint64),
+
+		reflect.Float32: math.MaxFloat32,
+		reflect.Float64: math.MaxFloat64,
+
+		reflect.String: "INF",
+	}
+
+	v := maxs[typ.Kind()]
+	val := reflect.ValueOf(v).Convert(typ)
+	return val.Interface().(T)
+
 }
 
 /**

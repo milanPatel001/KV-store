@@ -1,193 +1,76 @@
 package utils
 
 import (
+	"cmp"
 	"fmt"
 	"math"
 	"sync"
 	"time"
 )
 
-type NodeData struct {
-	Key string
-	TTL int
+type NodeData[T cmp.Ordered] struct {
+	Key          string
+	OrderedValue T
 }
 
-type Node struct {
-	Data  NodeData
-	Up    *Node
-	Down  *Node
-	Left  *Node
-	Right *Node
+type Node[T cmp.Ordered] struct {
+	Data  NodeData[T]
+	Up    *Node[T]
+	Down  *Node[T]
+	Left  *Node[T]
+	Right *Node[T]
 }
 
-type SkipList struct {
-	Head          *Node
-	Tail          *Node
+type SkipList[T cmp.Ordered] struct {
+	Head          *Node[T]
+	Tail          *Node[T]
 	NumOfElements int
 	Height        int
 	mu            sync.RWMutex
 }
 
-// -1 <-> max
-func CreateSkipList() *SkipList {
-	HeadNode := &Node{Data: NodeData{"-INF", -1}}
-	TailNode := &Node{Data: NodeData{"INF", math.MaxInt32}}
+type TTLSkipList struct {
+	SkipList[int]
+}
+
+// TTL Skiplist
+func CreateTTLSkipList() *TTLSkipList {
+	HeadNode := &Node[int]{Data: NodeData[int]{"-INF", -1}}
+	TailNode := &Node[int]{Data: NodeData[int]{"INF", math.MaxInt32}}
 
 	HeadNode.Right = TailNode
 	TailNode.Left = HeadNode
 
-	return &SkipList{Head: HeadNode, Tail: TailNode}
+	return &TTLSkipList{SkipList[int]{Head: HeadNode, Tail: TailNode}}
 }
 
-func (skipList *SkipList) Search(key string, ttl int) bool {
-	/*
-			17
-			17	  25				55
-			17	  25 31			    55
-			17    25 31 38    44    55
-		 12	17 20 25 31 38 39 44 50 55
-
-	*/
-
-	skipList.mu.RLock()
-	defer skipList.mu.RUnlock()
-
-	node := skipList.FindEntry(key, ttl)
-	//fmt.Println(node)
-	if node.Data.Key == key {
-		return true
-	}
-
-	return false
-
+func (skipList *TTLSkipList) Search(key string, ttl int) bool {
+	return skipList.SkipList.Search(key, ttl)
 }
 
-func (skipList *SkipList) Insert(key string, ttl int) error {
-
-	skipList.mu.Lock()
-	defer skipList.mu.Unlock()
-
-	prevNode := skipList.FindEntry(key, ttl)
-
-	if prevNode.Data.Key == key {
-		return fmt.Errorf("This node is already present !!!")
-	}
-
-	//We are at the lowest level
-	nextNode := prevNode.Right
-
-	newNode := &Node{Data: NodeData{key, ttl}}
-
-	prevNode.Right = newNode
-	newNode.Left = prevNode
-
-	newNode.Right = nextNode
-	nextNode.Left = newNode
-
-	skipList.NumOfElements++
-
-	currentLevel := 0
-
-	for {
-		r, err := RandomFloat64()
-
-		if err != nil || r <= 0.5 {
-			break
-		}
-
-		newUpperNode := &Node{Data: NodeData{key, ttl}}
-
-		// Create new level
-		if currentLevel >= skipList.Height {
-			//fmt.Println("CUrrent Level Exceeded")
-			skipList.Head.Up = &Node{Data: NodeData{"-INF", -1}}
-			skipList.Head.Up.Down = skipList.Head
-
-			skipList.Tail.Up = &Node{Data: NodeData{"INF", math.MaxInt32}}
-			skipList.Tail.Up.Down = skipList.Tail
-
-			skipList.Head = skipList.Head.Up
-			skipList.Tail = skipList.Tail.Up
-
-			skipList.Head.Right = newUpperNode
-			newUpperNode.Left = skipList.Head
-
-			newUpperNode.Right = skipList.Tail
-			skipList.Tail.Left = newUpperNode
-
-			newNode.Up = newUpperNode
-			newUpperNode.Down = newNode
-
-			skipList.Height++
-
-			break
-
-			// or Create duplicate node in upper level
-		} else {
-			//fmt.Println("Find Upper Prev Elem Entered")
-			prevNode = FindUpperLevelPrevElem(prevNode)
-			nextNode = prevNode.Right
-
-			prevNode.Right = newUpperNode
-			newUpperNode.Left = prevNode
-
-			newUpperNode.Right = nextNode
-			nextNode.Left = newUpperNode
-
-			newNode.Up = newUpperNode
-			newUpperNode.Down = newNode
-
-			newNode = newNode.Up
-		}
-
-		currentLevel++
-	}
-
-	return nil
+func (skipList *TTLSkipList) Insert(key string, ttl int) error {
+	return skipList.SkipList.Insert(key, ttl)
 }
 
-func (skipList *SkipList) Delete(key string, ttl int) error {
-	skipList.mu.Lock()
-	defer skipList.mu.Unlock()
-
-	node := skipList.FindEntry(key, math.MaxInt32-1)
-
-	if node.Data.Key != key {
-		return fmt.Errorf("Can't find this key !!!")
-	}
-
-	// We get the uppermost node from FindEntry(..)
-	curr := node
-
-	for curr != nil {
-		prev := curr.Left
-		next := curr.Right
-		down := curr.Down
-
-		prev.Right = next
-		next.Left = prev
-
-		curr.Right = nil
-		curr.Left = nil
-		curr.Down = nil
-		curr.Up = nil
-
-		curr = down
-	}
-
-	skipList.NumOfElements--
-
-	return nil
-
+func (skipList *TTLSkipList) Delete(key string, ttl int) error {
+	return skipList.SkipList.Delete(key, ttl)
 }
 
-func (skipList *SkipList) DeleteExpiredKeys() []string {
+func (skipList *TTLSkipList) Update(key string, ttl int) error {
+	return skipList.SkipList.Update(key, ttl)
+}
+
+func (skipList *TTLSkipList) FindUpperLevelPrevElem(prevNode *Node[int]) *Node[int] {
+	return skipList.SkipList.FindUpperLevelPrevElem(prevNode)
+}
+
+func (skipList *TTLSkipList) DeleteExpiredKeys() []string {
 	skipList.mu.Lock()
 	defer skipList.mu.Unlock()
 
 	curr := skipList.Head
 
-	// Reach to Base Level of Head
+	// Reach to the Base Level of Head
 	for curr.Down != nil {
 		curr = curr.Down
 	}
@@ -197,7 +80,7 @@ func (skipList *SkipList) DeleteExpiredKeys() []string {
 	var deletedKeys []string
 
 	for curr != nil && curr.Data.Key != "INF" {
-		if int(time.Now().Unix()) < curr.Data.TTL {
+		if int(time.Now().Unix()) < curr.Data.OrderedValue {
 			break
 		}
 
@@ -229,12 +112,164 @@ func (skipList *SkipList) DeleteExpiredKeys() []string {
 	return deletedKeys
 }
 
-func (skipList *SkipList) Update(key string, newTTL int) {
-	skipList.mu.Lock()
-	defer skipList.mu.Unlock()
+/*
+***********************
+BASE SKIPLIST METHODS
+***********************
+*/
+
+func (skipList *SkipList[T]) Search(key string, orderedValue T) bool {
+	/*
+			17
+			17	  25				55
+			17	  25 31			    55
+			17    25 31 38    44    55
+		 12	17 20 25 31 38 39 44 50 55
+
+	*/
+
+	skipList.mu.RLock()
+	defer skipList.mu.RUnlock()
+
+	node := skipList.FindEntry(key, orderedValue)
+	//fmt.Println(node)
+	if node.Data.Key == key {
+		return true
+	}
+
+	return false
 }
 
-func FindUpperLevelPrevElem(prevNode *Node) *Node {
+func (skipList *SkipList[T]) Insert(key string, orderedValue T) error {
+
+	skipList.mu.Lock()
+	defer skipList.mu.Unlock()
+
+	prevNode := skipList.FindEntry(key, orderedValue)
+
+	if prevNode.Data.Key == key {
+		return fmt.Errorf("This node is already present !!!")
+	}
+
+	//We are at the lowest level
+	nextNode := prevNode.Right
+
+	newNode := &Node[T]{Data: NodeData[T]{key, orderedValue}}
+
+	prevNode.Right = newNode
+	newNode.Left = prevNode
+
+	newNode.Right = nextNode
+	nextNode.Left = newNode
+
+	skipList.NumOfElements++
+
+	currentLevel := 0
+
+	for {
+		r, err := RandomFloat64()
+
+		if err != nil || r <= 0.5 {
+			break
+		}
+
+		newUpperNode := &Node[T]{Data: NodeData[T]{key, orderedValue}}
+
+		// Create new level
+		if currentLevel >= skipList.Height {
+
+			var minVal T
+			maxVal := SetMaxValue[T]()
+
+			skipList.Head.Up = &Node[T]{Data: NodeData[T]{"-INF", minVal}}
+			skipList.Head.Up.Down = skipList.Head
+
+			skipList.Tail.Up = &Node[T]{Data: NodeData[T]{"INF", maxVal}}
+			skipList.Tail.Up.Down = skipList.Tail
+
+			skipList.Head = skipList.Head.Up
+			skipList.Tail = skipList.Tail.Up
+
+			skipList.Head.Right = newUpperNode
+			newUpperNode.Left = skipList.Head
+
+			newUpperNode.Right = skipList.Tail
+			skipList.Tail.Left = newUpperNode
+
+			newNode.Up = newUpperNode
+			newUpperNode.Down = newNode
+
+			skipList.Height++
+
+			break
+
+			// or Create duplicate node in upper level
+		} else {
+			//fmt.Println("Find Upper Prev Elem Entered")
+			prevNode = skipList.FindUpperLevelPrevElem(prevNode)
+			nextNode = prevNode.Right
+
+			prevNode.Right = newUpperNode
+			newUpperNode.Left = prevNode
+
+			newUpperNode.Right = nextNode
+			nextNode.Left = newUpperNode
+
+			newNode.Up = newUpperNode
+			newUpperNode.Down = newNode
+
+			newNode = newNode.Up
+		}
+
+		currentLevel++
+	}
+
+	return nil
+}
+
+func (skipList *SkipList[T]) Delete(key string, orderedValue T) error {
+	skipList.mu.Lock()
+	defer skipList.mu.Unlock()
+
+	node := skipList.FindEntry(key, orderedValue)
+
+	if node.Data.Key != key {
+		return fmt.Errorf("Can't find this key !!!")
+	}
+
+	// We get the uppermost node from FindEntry(..)
+	curr := node
+
+	for curr != nil {
+		prev := curr.Left
+		next := curr.Right
+		down := curr.Down
+
+		prev.Right = next
+		next.Left = prev
+
+		curr.Right = nil
+		curr.Left = nil
+		curr.Down = nil
+		curr.Up = nil
+
+		curr = down
+	}
+
+	skipList.NumOfElements--
+
+	return nil
+
+}
+
+func (skipList *SkipList[T]) Update(key string, newTTL int) error {
+	skipList.mu.Lock()
+	defer skipList.mu.Unlock()
+
+	return nil
+}
+
+func (skipList *SkipList[T]) FindUpperLevelPrevElem(prevNode *Node[T]) *Node[T] {
 	ptr := prevNode
 	// fmt.Print(ptr)
 	// fmt.Printf("{Up: %v, Down: %v, Left: %v, Right: %v}\n", ptr.Up, ptr.Down, ptr.Left, ptr.Right)
@@ -253,8 +288,8 @@ func FindUpperLevelPrevElem(prevNode *Node) *Node {
 }
 
 // Returns the entry. If nothing is matched, returns the immediate smaller element in the lowest level
-func (skipList *SkipList) FindEntry(key string, ttl int) *Node {
-	node := NodeData{key, ttl}
+func (skipList *SkipList[T]) FindEntry(key string, orderedValue T) *Node[T] {
+	node := NodeData[T]{key, orderedValue}
 
 	current := skipList.Head
 
@@ -282,7 +317,8 @@ func (skipList *SkipList) FindEntry(key string, ttl int) *Node {
 	return current
 }
 
-func (a NodeData) Compare(b NodeData) int {
+func (a NodeData[T]) Compare(b NodeData[T]) int {
+
 	// a > b : -1
 	// a < b :   1
 
@@ -294,11 +330,11 @@ func (a NodeData) Compare(b NodeData) int {
 		return 0
 	}
 
-	if a.TTL > b.TTL {
+	if a.OrderedValue > b.OrderedValue {
 		return -1
 	}
 
-	if a.TTL < b.TTL {
+	if a.OrderedValue < b.OrderedValue {
 		return 1
 	}
 
@@ -309,7 +345,7 @@ func (a NodeData) Compare(b NodeData) int {
 	return 1
 }
 
-func (skipList *SkipList) Print() {
+func (skipList *SkipList[T]) Print() {
 	skipList.mu.RLock()
 	defer skipList.mu.RUnlock()
 
@@ -320,7 +356,7 @@ func (skipList *SkipList) Print() {
 		curr := currentHead
 		fmt.Printf("Level %v ", currentLevel)
 		for curr != nil {
-			fmt.Printf("> ( %v : %v ) ", curr.Data.Key, curr.Data.TTL)
+			fmt.Printf("> ( %v : %v ) ", curr.Data.Key, curr.Data.OrderedValue)
 
 			//fmt.Printf("> ( %v : {TTL: %v, Up: %v, Down: %v, Left: %v, Right %v }) ", curr.Data.Key, curr.Data.TTL, curr.Up, curr.Down, curr.Left, curr.Right)
 			curr = curr.Right
