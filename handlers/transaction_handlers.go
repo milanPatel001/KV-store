@@ -90,12 +90,12 @@ func CommitHandler(statements []Statement) ([]string, error) {
 		// TODO : expand this properly for other commands
 		if statement.Command == "SET" {
 			if keyExists {
-				rollbackStatement = Statement{"SET", []string{statement.Args[0], previousItem.Val, strconv.Itoa(previousItem.TTL)}}
+				rollbackStatement = Statement{"SET", []string{statement.Args[0], previousItem.Val, strconv.Itoa(int(previousItem.TTL))}}
 			} else {
 				rollbackStatement = Statement{"DEL", statement.Args}
 			}
 		} else if statement.Command == "DEL" {
-			rollbackStatement = Statement{"SET", []string{statement.Args[0], previousItem.Val, strconv.Itoa(previousItem.TTL)}}
+			rollbackStatement = Statement{"SET", []string{statement.Args[0], previousItem.Val, strconv.Itoa(int(previousItem.TTL))}}
 		}
 
 		rollBackLog = utils.Prepend(rollBackLog, rollbackStatement)

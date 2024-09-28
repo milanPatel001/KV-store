@@ -6,6 +6,34 @@ import (
 	"testing"
 )
 
+func TestInsertBaseLevel(t *testing.T) {
+	skiplist := utils.CreateTTLSkipList()
+
+	skiplist.Insert("A", 60)
+	skiplist.Insert("B", 20)
+	skiplist.Insert("C", 50)
+	skiplist.Insert("D", 12)
+	skiplist.Insert("E", 20)
+	skiplist.Insert("F", 10)
+
+	curr := skiplist.Head
+	for curr.Down != nil {
+		curr = curr.Down
+	}
+
+	curr = curr.Right
+	prevVal := curr.Left.Data.OrderedValue
+	for curr != nil {
+		if prevVal > curr.Data.OrderedValue {
+			t.Errorf("Preval : %v is bigger than Curr val: %v. Something wrong with Skiplist Insert.", prevVal, curr.Data.OrderedValue)
+			break
+		}
+
+		curr = curr.Right
+	}
+
+}
+
 func TestExpiryDeletion(t *testing.T) {
 	skipList := buildSkipList()
 
@@ -67,11 +95,11 @@ func TestSearch(t *testing.T) {
 func TestSkipListFindEntry(t *testing.T) {
 	skipList := buildSkipList()
 
-	node1 := &utils.Node[int]{Data: utils.NodeData[int]{Key: "A", OrderedValue: 12}}
-	node2 := &utils.Node[int]{Data: utils.NodeData[int]{Key: "B", OrderedValue: 17}}
-	node3 := &utils.Node[int]{Data: utils.NodeData[int]{Key: "C", OrderedValue: 20}}
-	node4 := &utils.Node[int]{Data: utils.NodeData[int]{Key: "D", OrderedValue: 25}}
-	node5 := &utils.Node[int]{Data: utils.NodeData[int]{Key: "E", OrderedValue: 1787464175}}
+	node1 := &utils.Node[int32]{Data: utils.NodeData[int32]{Key: "A", OrderedValue: 12}}
+	node2 := &utils.Node[int32]{Data: utils.NodeData[int32]{Key: "B", OrderedValue: 17}}
+	node3 := &utils.Node[int32]{Data: utils.NodeData[int32]{Key: "C", OrderedValue: 20}}
+	node4 := &utils.Node[int32]{Data: utils.NodeData[int32]{Key: "D", OrderedValue: 25}}
+	node5 := &utils.Node[int32]{Data: utils.NodeData[int32]{Key: "E", OrderedValue: 1787464175}}
 
 	result := skipList.FindEntry("A", 12)
 	compareNodes(t, node1, result)
@@ -94,11 +122,11 @@ func TestSkipListFindEntry(t *testing.T) {
 }
 
 func TestComapareMethods(t *testing.T) {
-	node1 := utils.NodeData[int]{Key: "F", OrderedValue: 2}
-	node2 := utils.NodeData[int]{Key: "C", OrderedValue: 20}
-	node3 := utils.NodeData[int]{Key: "J", OrderedValue: 1}
-	node4 := utils.NodeData[int]{Key: "F", OrderedValue: math.MaxInt32 - 1}
-	node5 := utils.NodeData[int]{Key: "F", OrderedValue: 1}
+	node1 := utils.NodeData[int32]{Key: "F", OrderedValue: 2}
+	node2 := utils.NodeData[int32]{Key: "C", OrderedValue: 20}
+	node3 := utils.NodeData[int32]{Key: "J", OrderedValue: 1}
+	node4 := utils.NodeData[int32]{Key: "F", OrderedValue: math.MaxInt32 - 1}
+	node5 := utils.NodeData[int32]{Key: "F", OrderedValue: 1}
 
 	result := node1.Compare(node2)
 
@@ -130,24 +158,24 @@ func buildSkipList() *utils.TTLSkipList {
 	skipList.NumOfElements = 5
 	skipList.Height = 2
 
-	nodeH1 := &utils.Node[int]{Data: utils.NodeData[int]{Key: "-INF", OrderedValue: -1}}
-	nodeH2 := &utils.Node[int]{Data: utils.NodeData[int]{Key: "-INF", OrderedValue: -1}}
+	nodeH1 := &utils.Node[int32]{Data: utils.NodeData[int32]{Key: "-INF", OrderedValue: -1}}
+	nodeH2 := &utils.Node[int32]{Data: utils.NodeData[int32]{Key: "-INF", OrderedValue: -1}}
 
-	nodeT1 := &utils.Node[int]{Data: utils.NodeData[int]{Key: "INF", OrderedValue: math.MaxInt32}}
-	nodeT2 := &utils.Node[int]{Data: utils.NodeData[int]{Key: "INF", OrderedValue: math.MaxInt32}}
+	nodeT1 := &utils.Node[int32]{Data: utils.NodeData[int32]{Key: "INF", OrderedValue: math.MaxInt32}}
+	nodeT2 := &utils.Node[int32]{Data: utils.NodeData[int32]{Key: "INF", OrderedValue: math.MaxInt32}}
 
-	node1 := &utils.Node[int]{Data: utils.NodeData[int]{Key: "A", OrderedValue: 12}}
+	node1 := &utils.Node[int32]{Data: utils.NodeData[int32]{Key: "A", OrderedValue: 12}}
 
-	node2 := &utils.Node[int]{Data: utils.NodeData[int]{Key: "B", OrderedValue: 17}}
-	node22 := &utils.Node[int]{Data: utils.NodeData[int]{Key: "B", OrderedValue: 17}}
-	node23 := &utils.Node[int]{Data: utils.NodeData[int]{Key: "B", OrderedValue: 17}}
+	node2 := &utils.Node[int32]{Data: utils.NodeData[int32]{Key: "B", OrderedValue: 17}}
+	node22 := &utils.Node[int32]{Data: utils.NodeData[int32]{Key: "B", OrderedValue: 17}}
+	node23 := &utils.Node[int32]{Data: utils.NodeData[int32]{Key: "B", OrderedValue: 17}}
 
-	node3 := &utils.Node[int]{Data: utils.NodeData[int]{Key: "C", OrderedValue: 20}}
+	node3 := &utils.Node[int32]{Data: utils.NodeData[int32]{Key: "C", OrderedValue: 20}}
 
-	node4 := &utils.Node[int]{Data: utils.NodeData[int]{Key: "D", OrderedValue: 25}}
-	node42 := &utils.Node[int]{Data: utils.NodeData[int]{Key: "D", OrderedValue: 25}}
+	node4 := &utils.Node[int32]{Data: utils.NodeData[int32]{Key: "D", OrderedValue: 25}}
+	node42 := &utils.Node[int32]{Data: utils.NodeData[int32]{Key: "D", OrderedValue: 25}}
 
-	node5 := &utils.Node[int]{Data: utils.NodeData[int]{Key: "E", OrderedValue: 1787464175}} // was 44
+	node5 := &utils.Node[int32]{Data: utils.NodeData[int32]{Key: "E", OrderedValue: 1787464175}} // was 44
 
 	skipList.Head.Up = nodeH1
 	nodeH1.Down = skipList.Head
@@ -207,7 +235,7 @@ func buildSkipList() *utils.TTLSkipList {
 	return skipList
 }
 
-func compareNodes(t *testing.T, expected, actual *utils.Node[int]) {
+func compareNodes(t *testing.T, expected, actual *utils.Node[int32]) {
 	if expected.Data.Key != actual.Data.Key || expected.Data.OrderedValue != actual.Data.OrderedValue {
 		t.Errorf("Expected node with Key: %s and TTL: %d, but got Key: %s and TTL: %d",
 			expected.Data.Key, expected.Data.OrderedValue, actual.Data.Key, actual.Data.OrderedValue)

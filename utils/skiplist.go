@@ -25,42 +25,42 @@ type SkipList[T cmp.Ordered] struct {
 	Head          *Node[T]
 	Tail          *Node[T]
 	NumOfElements int
-	Height        int
+	Height        int8
 	mu            sync.RWMutex
 }
 
 type TTLSkipList struct {
-	SkipList[int]
+	SkipList[int32]
 }
 
 // TTL Skiplist
 func CreateTTLSkipList() *TTLSkipList {
-	HeadNode := &Node[int]{Data: NodeData[int]{"-INF", -1}}
-	TailNode := &Node[int]{Data: NodeData[int]{"INF", math.MaxInt32}}
+	HeadNode := &Node[int32]{Data: NodeData[int32]{"-INF", -1}}
+	TailNode := &Node[int32]{Data: NodeData[int32]{"INF", math.MaxInt32}}
 
 	HeadNode.Right = TailNode
 	TailNode.Left = HeadNode
 
-	return &TTLSkipList{SkipList[int]{Head: HeadNode, Tail: TailNode}}
+	return &TTLSkipList{SkipList[int32]{Head: HeadNode, Tail: TailNode}}
 }
 
-func (skipList *TTLSkipList) Search(key string, ttl int) bool {
+func (skipList *TTLSkipList) Search(key string, ttl int32) bool {
 	return skipList.SkipList.Search(key, ttl)
 }
 
-func (skipList *TTLSkipList) Insert(key string, ttl int) error {
+func (skipList *TTLSkipList) Insert(key string, ttl int32) error {
 	return skipList.SkipList.Insert(key, ttl)
 }
 
-func (skipList *TTLSkipList) Delete(key string, ttl int) error {
+func (skipList *TTLSkipList) Delete(key string, ttl int32) error {
 	return skipList.SkipList.Delete(key, ttl)
 }
 
-func (skipList *TTLSkipList) Update(key string, ttl int) error {
+func (skipList *TTLSkipList) Update(key string, ttl int32) error {
 	return skipList.SkipList.Update(key, ttl)
 }
 
-func (skipList *TTLSkipList) FindUpperLevelPrevElem(prevNode *Node[int]) *Node[int] {
+func (skipList *TTLSkipList) FindUpperLevelPrevElem(prevNode *Node[int32]) *Node[int32] {
 	return skipList.SkipList.FindUpperLevelPrevElem(prevNode)
 }
 
@@ -80,7 +80,7 @@ func (skipList *TTLSkipList) DeleteExpiredKeys() []string {
 	var deletedKeys []string
 
 	for curr != nil && curr.Data.Key != "INF" {
-		if int(time.Now().Unix()) < curr.Data.OrderedValue {
+		if int32(time.Now().Unix()) < curr.Data.OrderedValue {
 			break
 		}
 
@@ -164,7 +164,7 @@ func (skipList *SkipList[T]) Insert(key string, orderedValue T) error {
 
 	skipList.NumOfElements++
 
-	currentLevel := 0
+	var currentLevel int8 = 0
 
 	for {
 		r, err := RandomFloat64()
@@ -262,7 +262,7 @@ func (skipList *SkipList[T]) Delete(key string, orderedValue T) error {
 
 }
 
-func (skipList *SkipList[T]) Update(key string, newTTL int) error {
+func (skipList *SkipList[T]) Update(key string, newOrderedValue T) error {
 	skipList.mu.Lock()
 	defer skipList.mu.Unlock()
 
@@ -317,7 +317,7 @@ func (skipList *SkipList[T]) FindEntry(key string, orderedValue T) *Node[T] {
 	return current
 }
 
-func (a NodeData[T]) Compare(b NodeData[T]) int {
+func (a NodeData[T]) Compare(b NodeData[T]) int8 {
 
 	// a > b : -1
 	// a < b :   1

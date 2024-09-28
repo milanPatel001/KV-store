@@ -26,7 +26,7 @@ type Connection struct {
 type CacheItem struct {
 	Val       string
 	CanExpire bool
-	TTL       int
+	TTL       int32
 }
 
 type Cache struct {
@@ -127,14 +127,14 @@ func SetHandler(args []string) error {
 	}
 
 	var value string = args[1]
-	var ttl int
+	var ttl int32
 	if len(args) > 2 {
 		val, err := strconv.Atoi(args[2])
 
 		if err != nil {
 			ttl = 0
 		} else {
-			ttl = val
+			ttl = int32(val)
 		}
 	}
 
@@ -148,12 +148,12 @@ func SetHandler(args []string) error {
 	}
 
 	canExpire := false
-	var expiry int
+	var expiry int32
 
 	if ttl > 0 {
 		canExpire = true
 
-		now := int(time.Now().Unix())
+		now := int32(time.Now().Unix())
 
 		if ttl > math.MaxInt32-now-1 {
 			expiry = math.MaxInt32 - 1
