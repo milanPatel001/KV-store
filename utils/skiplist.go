@@ -30,37 +30,37 @@ type SkipList[T cmp.Ordered] struct {
 }
 
 type TTLSkipList struct {
-	SkipList[int32]
+	SkipList[uint32]
 }
 
 // TTL Skiplist
 func CreateTTLSkipList() *TTLSkipList {
-	HeadNode := &Node[int32]{Data: NodeData[int32]{"-INF", -1}}
-	TailNode := &Node[int32]{Data: NodeData[int32]{"INF", math.MaxInt32}}
+	HeadNode := &Node[uint32]{Data: NodeData[uint32]{"-INF", 0}}
+	TailNode := &Node[uint32]{Data: NodeData[uint32]{"INF", math.MaxInt32}}
 
 	HeadNode.Right = TailNode
 	TailNode.Left = HeadNode
 
-	return &TTLSkipList{SkipList[int32]{Head: HeadNode, Tail: TailNode}}
+	return &TTLSkipList{SkipList[uint32]{Head: HeadNode, Tail: TailNode}}
 }
 
-func (skipList *TTLSkipList) Search(key string, ttl int32) bool {
+func (skipList *TTLSkipList) Search(key string, ttl uint32) bool {
 	return skipList.SkipList.Search(key, ttl)
 }
 
-func (skipList *TTLSkipList) Insert(key string, ttl int32) error {
+func (skipList *TTLSkipList) Insert(key string, ttl uint32) error {
 	return skipList.SkipList.Insert(key, ttl)
 }
 
-func (skipList *TTLSkipList) Delete(key string, ttl int32) error {
+func (skipList *TTLSkipList) Delete(key string, ttl uint32) error {
 	return skipList.SkipList.Delete(key, ttl)
 }
 
-func (skipList *TTLSkipList) Update(key string, ttl int32) error {
+func (skipList *TTLSkipList) Update(key string, ttl uint32) error {
 	return skipList.SkipList.Update(key, ttl)
 }
 
-func (skipList *TTLSkipList) FindUpperLevelPrevElem(prevNode *Node[int32]) *Node[int32] {
+func (skipList *TTLSkipList) FindUpperLevelPrevElem(prevNode *Node[uint32]) *Node[uint32] {
 	return skipList.SkipList.FindUpperLevelPrevElem(prevNode)
 }
 
@@ -80,7 +80,7 @@ func (skipList *TTLSkipList) DeleteExpiredKeys() []string {
 	var deletedKeys []string
 
 	for curr != nil && curr.Data.Key != "INF" {
-		if int32(time.Now().Unix()) < curr.Data.OrderedValue {
+		if uint32(time.Now().Unix()) < curr.Data.OrderedValue {
 			break
 		}
 

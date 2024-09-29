@@ -9,6 +9,7 @@
 
 ### Will Add
 - Multiple caches (default 16)
+- LRU eviction for volatile keys
 - Bloom Filter
 - Double Ended Queue
 - Async Saving/Retrieving of databases on disk
