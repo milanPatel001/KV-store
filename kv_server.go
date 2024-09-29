@@ -92,7 +92,7 @@ func handleConnection(c net.Conn) {
 
 		parts := strings.Fields(input)
 		if len(parts) == 0 {
-			c.Write([]byte("Nothing entered!!!"))
+			c.Write([]byte(utils.SerializeInput("ERR", "Nothing entered !!!")))
 			continue
 		}
 

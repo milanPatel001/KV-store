@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"net"
+	"prac/utils"
 	"strconv"
 	"strings"
 	"time"
@@ -15,7 +16,7 @@ func SwitchCases(command string, args []string, connectionObj *Connection, conn 
 
 	if inTransaction && command != "COMMIT" && command != "DISCARD" && command != "BEGIN" {
 		connectionObj.TransactionQueue = append(connectionObj.TransactionQueue, Statement{command, args})
-		conn.Write([]byte(">> QUEUED"))
+		conn.Write([]byte(utils.SerializeInput("TR", ">> QUEUED")))
 		return
 	}
 
@@ -29,9 +30,9 @@ func SwitchCases(command string, args []string, connectionObj *Connection, conn 
 	}
 
 	if err != nil {
-		conn.Write([]byte(err.Error()))
+		conn.Write([]byte(utils.SerializeInput("ERR", err.Error())))
 	} else {
-		conn.Write([]byte(successMsg))
+		conn.Write([]byte(utils.SerializeInput(command, successMsg)))
 	}
 }
 
@@ -63,11 +64,12 @@ func CommandHandler(command string, args []string) (string, error) {
 		return ">> SUCCESS", nil
 
 	case "NUM":
-		if err := SetCurrentCache(args); err != nil {
+		num, err := SetCurrentCacheHandler(args)
+		if err != nil {
 			return "", err
 		}
 
-		return ">> SUCCESS", nil
+		return strconv.Itoa(num), nil
 	}
 
 	return "", fmt.Errorf("Unknown command !!!")
@@ -174,21 +176,21 @@ func GetHandler(args []string) (string, error) {
 	return item.Val, nil
 }
 
-func SetCurrentCache(args []string) error {
+func SetCurrentCacheHandler(args []string) (int, error) {
 	if len(args) == 0 {
-		return fmt.Errorf("No number provided !!!")
+		return -1, fmt.Errorf("No number provided !!!")
 	}
 
 	num, err := strconv.Atoi(args[0])
 
 	if err != nil {
-		return err
+		return -1, err
 	}
 
-	if num >= int(DefaultCacheNum) {
-		return fmt.Errorf("Cache number must be in range of [0, %v].", DefaultCacheNum-1)
+	if num < 0 || num >= int(DefaultCacheNum) {
+		return -1, fmt.Errorf("Cache number must be in range of [0, %v].", DefaultCacheNum-1)
 	}
 
 	CurrentCache = &Caches[num]
-	return nil
+	return num, nil
 }

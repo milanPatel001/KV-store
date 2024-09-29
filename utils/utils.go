@@ -4,10 +4,15 @@ import (
 	"cmp"
 	"crypto/rand"
 	"encoding/binary"
+	"fmt"
 	"math"
 	"math/big"
 	"reflect"
 )
+
+func SerializeInput(command string, commandOutput string) string {
+	return fmt.Sprintf("%v\r\n%v\r\n", command, commandOutput)
+}
 
 func Prepend[T any](x []T, y T) []T {
 	var temp T
@@ -76,7 +81,6 @@ func SetMaxValue[T cmp.Ordered]() T {
 	v := maxs[typ.Kind()]
 	val := reflect.ValueOf(v).Convert(typ)
 	return val.Interface().(T)
-
 }
 
 /**

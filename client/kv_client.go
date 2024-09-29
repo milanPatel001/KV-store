@@ -6,6 +6,8 @@ import (
 	"log"
 	"net"
 	"os"
+	"strconv"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -52,7 +54,33 @@ func main() {
 			log.Fatal(err)
 		}
 
-		fmt.Println(string(buffer[:n]))
+		output := DeserializeOutput(string(buffer[:n]), &currentCacheNum)
+
+		fmt.Println(output)
 	}
 
 }
+
+// +COMMAND\r\nOUTPUT\r\n
+func DeserializeOutput(s string, cacheNum *uint8) string {
+
+	str := strings.Split(s, "\r\n")
+
+	command := str[0]
+	output := str[1]
+
+	if command == "NUM" {
+		val, _ := strconv.Atoi(output)
+
+		*cacheNum = uint8(val)
+	} else if command == "ERR" {
+		output = "-" + output
+	}
+
+	return output
+}
+
+// func SerializeInput(input string) string {
+// 	// COMMAND\r\nARG1\r\nARG2\r\n
+// 	string
+// }

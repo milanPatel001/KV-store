@@ -6,9 +6,9 @@
 - DEL
 - Transaction - BEGIN, COMMIT and DISCARD
 - Rollback for transaction
+- Multiple caches (default 16)
 
 ### Will Add
-- Multiple caches (default 16)
 - LRU eviction for volatile keys
 - Bloom Filter
 - Double Ended Queue
