@@ -30,9 +30,11 @@ func main() {
 	defer conn.Close()
 
 	scanner := bufio.NewScanner(os.Stdin)
+
+	var currentCacheNum uint8 = 0
 	fmt.Println("CONNECTED TO KV SERVER...")
 	for {
-		fmt.Print("\n>>> ")
+		fmt.Printf("\n[%v]>>> ", currentCacheNum)
 
 		if !scanner.Scan() {
 			break
@@ -49,6 +51,7 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
+
 		fmt.Println(string(buffer[:n]))
 	}
 

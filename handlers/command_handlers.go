@@ -4,40 +4,10 @@ import (
 	"fmt"
 	"math"
 	"net"
-	"prac/utils"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 )
-
-type Statement struct {
-	Command string
-	Args    []string
-}
-
-type Connection struct {
-	Id               string
-	IP               string
-	TransactionQueue []Statement
-	TransactionFlag  bool
-}
-
-type CacheItem struct {
-	Val       string
-	CanExpire bool
-	TTL       uint32
-}
-
-type Cache struct {
-	Mutex            sync.Mutex
-	TransactionMutex sync.Mutex
-	Data             map[string]CacheItem
-	SkipList         *utils.TTLSkipList
-}
-
-var ConnectionMap = make(map[string]*Connection)
-var PlainCache = Cache{Data: make(map[string]CacheItem), SkipList: utils.CreateTTLSkipList()}
 
 func SwitchCases(command string, args []string, connectionObj *Connection, conn net.Conn) {
 
@@ -91,6 +61,13 @@ func CommandHandler(command string, args []string) (string, error) {
 		}
 
 		return ">> SUCCESS", nil
+
+	case "NUM":
+		if err := SetCurrentCache(args); err != nil {
+			return "", err
+		}
+
+		return ">> SUCCESS", nil
 	}
 
 	return "", fmt.Errorf("Unknown command !!!")
@@ -101,18 +78,18 @@ func DelHandler(args []string) error {
 		return fmt.Errorf("DEL : Missing Key")
 	}
 
-	PlainCache.Mutex.Lock()
-	defer PlainCache.Mutex.Unlock()
+	CurrentCache.Mutex.Lock()
+	defer CurrentCache.Mutex.Unlock()
 
-	item, exist := PlainCache.Data[args[0]]
+	item, exist := CurrentCache.Data[args[0]]
 
 	if !exist {
 		return fmt.Errorf("DEL %s : Key doesn't exist !!!", args[0])
 	}
 
-	delete(PlainCache.Data, args[0])
+	delete(CurrentCache.Data, args[0])
 
-	PlainCache.SkipList.Delete(args[0], item.TTL)
+	CurrentCache.SkipList.Delete(args[0], item.TTL)
 
 	return nil
 }
@@ -163,20 +140,20 @@ func SetHandler(args []string) error {
 
 	}
 
-	PlainCache.Mutex.Lock()
-	item, exist := PlainCache.Data[args[0]]
+	CurrentCache.Mutex.Lock()
+	item, exist := CurrentCache.Data[args[0]]
 	if exist {
 		// NOTE: Seperate command for changing ttl, so don't bother with it here
-		PlainCache.Data[args[0]] = CacheItem{Val: value, CanExpire: item.CanExpire, TTL: item.TTL}
+		CurrentCache.Data[args[0]] = CacheItem{Val: value, CanExpire: item.CanExpire, TTL: item.TTL}
 	} else {
-		PlainCache.Data[args[0]] = CacheItem{Val: value, CanExpire: canExpire, TTL: expiry}
+		CurrentCache.Data[args[0]] = CacheItem{Val: value, CanExpire: canExpire, TTL: expiry}
 
 		if canExpire {
-			PlainCache.SkipList.Insert(args[0], expiry)
+			CurrentCache.SkipList.Insert(args[0], expiry)
 		}
 	}
 
-	PlainCache.Mutex.Unlock()
+	CurrentCache.Mutex.Unlock()
 
 	return nil
 }
@@ -186,13 +163,32 @@ func GetHandler(args []string) (string, error) {
 		return "", fmt.Errorf("GET : Missing Key")
 	}
 
-	PlainCache.Mutex.Lock()
-	item, exist := PlainCache.Data[args[0]]
-	PlainCache.Mutex.Unlock()
+	CurrentCache.Mutex.Lock()
+	item, exist := CurrentCache.Data[args[0]]
+	CurrentCache.Mutex.Unlock()
 
 	if !exist {
 		return "", fmt.Errorf("GET %v: Key doesn't exist!!!", args[0])
 	}
 
 	return item.Val, nil
+}
+
+func SetCurrentCache(args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("No number provided !!!")
+	}
+
+	num, err := strconv.Atoi(args[0])
+
+	if err != nil {
+		return err
+	}
+
+	if num >= int(DefaultCacheNum) {
+		return fmt.Errorf("Cache number must be in range of [0, %v].", DefaultCacheNum-1)
+	}
+
+	CurrentCache = &Caches[num]
+	return nil
 }

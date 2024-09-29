@@ -10,7 +10,7 @@ type TTLNode = utils.Node[uint32]
 type TTLNodeData = utils.NodeData[uint32]
 
 func TestInsertBaseLevel(t *testing.T) {
-	skiplist := utils.CreateTTLSkipList()
+	skiplist := utils.CreateTTLSkipList(48)
 
 	skiplist.Insert("A", 60)
 	skiplist.Insert("B", 20)
@@ -157,7 +157,7 @@ func buildSkipList() *utils.TTLSkipList {
 	// H1 	 17    25	 T1
 	// H  12 17 20 25 44  T
 
-	skipList := utils.CreateTTLSkipList()
+	skipList := utils.CreateTTLSkipList(48)
 	skipList.NumOfElements = 5
 	skipList.Height = 2
 

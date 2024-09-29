@@ -58,8 +58,8 @@ func CommitHandler(statements []Statement) ([]string, error) {
 	rollBackLog := []Statement{}
 	successMsgLog := []string{}
 
-	PlainCache.TransactionMutex.Lock()
-	defer PlainCache.TransactionMutex.Unlock()
+	CurrentCache.TransactionMutex.Lock()
+	defer CurrentCache.TransactionMutex.Unlock()
 
 	for _, statement := range statements {
 
@@ -67,9 +67,9 @@ func CommitHandler(statements []Statement) ([]string, error) {
 		var keyExists bool
 
 		if (statement.Command == "DEL" && len(statement.Args) != 0) || (statement.Command == "SET" && len(statement.Args) == 2) {
-			PlainCache.Mutex.Lock()
-			previousItem, keyExists = PlainCache.Data[statement.Args[0]]
-			PlainCache.Mutex.Unlock()
+			CurrentCache.Mutex.Lock()
+			previousItem, keyExists = CurrentCache.Data[statement.Args[0]]
+			CurrentCache.Mutex.Unlock()
 		}
 
 		successMsg, err := CommandHandler(statement.Command, statement.Args)

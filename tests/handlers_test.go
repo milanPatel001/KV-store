@@ -6,6 +6,7 @@ import (
 )
 
 func TestDelHandler(t *testing.T) {
+	handlers.SetUpCaches(8, 16)
 	tests := []struct {
 		name        string
 		args        []string
@@ -37,7 +38,7 @@ func TestDelHandler(t *testing.T) {
 
 	for _, test := range tests {
 		// Initialize cache state
-		handlers.PlainCache.Data = test.initialData
+		handlers.CurrentCache.Data = test.initialData
 
 		t.Run(test.name, func(t *testing.T) {
 			err := handlers.DelHandler(test.args)
@@ -53,7 +54,7 @@ func TestDelHandler(t *testing.T) {
 					t.Errorf("Did not expect an error but got: %v", err)
 				}
 
-				if _, exists := handlers.PlainCache.Data[test.args[0]]; exists {
+				if _, exists := handlers.CurrentCache.Data[test.args[0]]; exists {
 					t.Errorf("Expected key to be deleted, but it still exists")
 				}
 			}
@@ -62,6 +63,7 @@ func TestDelHandler(t *testing.T) {
 }
 
 func TestSetHandler(t *testing.T) {
+	handlers.SetUpCaches(8, 16)
 	tests := []struct {
 		name        string
 		input       []string
@@ -101,8 +103,8 @@ func TestSetHandler(t *testing.T) {
 				if err != nil {
 					t.Errorf("Did not expect an error but got: %v", err)
 				}
-				if handlers.PlainCache.Data[test.input[0]].Val != test.input[1] {
-					t.Errorf("Expected value %v, but got %v", test.input[1], handlers.PlainCache.Data[test.input[0]])
+				if handlers.CurrentCache.Data[test.input[0]].Val != test.input[1] {
+					t.Errorf("Expected value %v, but got %v", test.input[1], handlers.CurrentCache.Data[test.input[0]])
 				}
 			}
 		})
@@ -110,6 +112,7 @@ func TestSetHandler(t *testing.T) {
 }
 
 func TestGetHandler(t *testing.T) {
+	handlers.SetUpCaches(8, 16)
 	tests := []struct {
 		name        string
 		input       []string
@@ -143,7 +146,7 @@ func TestGetHandler(t *testing.T) {
 
 	for _, test := range tests {
 
-		handlers.PlainCache.Data = test.initialData
+		handlers.CurrentCache.Data = test.initialData
 
 		t.Run(test.name, func(t *testing.T) {
 			val, err := handlers.GetHandler(test.input)

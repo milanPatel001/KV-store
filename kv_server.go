@@ -34,13 +34,16 @@ func main() {
 
 	l, err := net.Listen("tcp4", PORT)
 	if err != nil {
-		fmt.Println(err)
-		return
+		log.Fatal(err)
 	}
 	defer func() {
 		l.Close()
 		cancel()
 	}()
+
+	if err = handlers.SetUpCaches(16, 48); err != nil {
+		log.Fatal(err)
+	}
 
 	fmt.Println("Server running on Port " + PORT)
 
@@ -49,8 +52,7 @@ func main() {
 	for {
 		c, err := l.Accept()
 		if err != nil {
-			fmt.Println(err)
-			return
+			log.Fatal(err)
 		}
 
 		go handleConnection(c)
@@ -112,15 +114,15 @@ func handleSkipListExpiry(ctx context.Context) {
 	for {
 		select {
 		case <-ticker.C:
-			deletedKeys := handlers.PlainCache.SkipList.DeleteExpiredKeys()
+			deletedKeys := handlers.CurrentCache.SkipList.DeleteExpiredKeys()
 
-			handlers.PlainCache.Mutex.Lock()
+			handlers.CurrentCache.Mutex.Lock()
 
 			for _, key := range deletedKeys {
-				delete(handlers.PlainCache.Data, key)
+				delete(handlers.CurrentCache.Data, key)
 			}
 
-			handlers.PlainCache.Mutex.Unlock()
+			handlers.CurrentCache.Mutex.Unlock()
 
 		case <-ctx.Done():
 			return

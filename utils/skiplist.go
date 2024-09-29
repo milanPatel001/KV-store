@@ -24,8 +24,9 @@ type Node[T cmp.Ordered] struct {
 type SkipList[T cmp.Ordered] struct {
 	Head          *Node[T]
 	Tail          *Node[T]
-	NumOfElements int
-	Height        int8
+	NumOfElements uint
+	Height        uint8
+	maxHeight     uint8
 	mu            sync.RWMutex
 }
 
@@ -34,14 +35,14 @@ type TTLSkipList struct {
 }
 
 // TTL Skiplist
-func CreateTTLSkipList() *TTLSkipList {
+func CreateTTLSkipList(maxHeight uint8) *TTLSkipList {
 	HeadNode := &Node[uint32]{Data: NodeData[uint32]{"-INF", 0}}
 	TailNode := &Node[uint32]{Data: NodeData[uint32]{"INF", math.MaxInt32}}
 
 	HeadNode.Right = TailNode
 	TailNode.Left = HeadNode
 
-	return &TTLSkipList{SkipList[uint32]{Head: HeadNode, Tail: TailNode}}
+	return &TTLSkipList{SkipList[uint32]{Head: HeadNode, Tail: TailNode, maxHeight: maxHeight}}
 }
 
 func (skipList *TTLSkipList) Search(key string, ttl uint32) bool {
@@ -164,12 +165,12 @@ func (skipList *SkipList[T]) Insert(key string, orderedValue T) error {
 
 	skipList.NumOfElements++
 
-	var currentLevel int8 = 0
+	var currentLevel uint8 = 0
 
 	for {
 		r, err := RandomFloat64()
 
-		if err != nil || r <= 0.5 {
+		if err != nil || r <= 0.5 || currentLevel > skipList.maxHeight {
 			break
 		}
 
