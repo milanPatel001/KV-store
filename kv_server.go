@@ -7,7 +7,6 @@ import (
 	"log"
 	"net"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -83,30 +82,26 @@ func handleConnection(c net.Conn) {
 		}
 
 		data := string(buffer[:n])
-		input := strings.TrimSpace(string(data))
 
-		if strings.ToUpper(input) == "EXIT" {
+		command, args, err := utils.DeserializeInput(data)
+
+		if err != nil {
+			c.Write([]byte(utils.SerializeOutput("ERR", err.Error())))
+			continue
+		}
+
+		if command == "EXIT" {
 			log.Println(connObj.IP + ": Client disconnected")
 			break
 		}
 
-		parts := strings.Fields(input)
-		if len(parts) == 0 {
-			c.Write([]byte(utils.SerializeInput("ERR", "Nothing entered !!!")))
-			continue
-		}
-
-		command := strings.ToUpper(parts[0])
-		args := parts[1:]
-
-		fmt.Print(command + " : ")
-		fmt.Print(args)
-		fmt.Print("\n")
+		fmt.Printf("%v : %v\n", command, args)
 
 		handlers.SwitchCases(command, args, &connObj, c)
 	}
 }
 
+// TODO : expire keys from inactive caches as well
 func handleSkipListExpiry(ctx context.Context) {
 	ticker := time.NewTicker(60 * time.Second)
 	defer ticker.Stop()

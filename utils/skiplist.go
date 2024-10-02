@@ -34,7 +34,10 @@ type TTLSkipList struct {
 	SkipList[uint32]
 }
 
-// TTL Skiplist
+type ScoreSkipList struct {
+	SkipList[int]
+}
+
 func CreateTTLSkipList(maxHeight uint8) *TTLSkipList {
 	HeadNode := &Node[uint32]{Data: NodeData[uint32]{"-INF", 0}}
 	TailNode := &Node[uint32]{Data: NodeData[uint32]{"INF", math.MaxInt32}}
@@ -45,6 +48,21 @@ func CreateTTLSkipList(maxHeight uint8) *TTLSkipList {
 	return &TTLSkipList{SkipList[uint32]{Head: HeadNode, Tail: TailNode, maxHeight: maxHeight}}
 }
 
+func CreateScoreSkipList(maxHeight uint8) *ScoreSkipList {
+	HeadNode := &Node[int]{Data: NodeData[int]{"-INF", 0}}
+	TailNode := &Node[int]{Data: NodeData[int]{"INF", math.MaxInt32}}
+
+	HeadNode.Right = TailNode
+	TailNode.Left = HeadNode
+
+	return &ScoreSkipList{SkipList[int]{Head: HeadNode, Tail: TailNode, maxHeight: maxHeight}}
+}
+
+/*
+***********************
+TTL SKIPLIST
+***********************
+*/
 func (skipList *TTLSkipList) Search(key string, ttl uint32) bool {
 	return skipList.SkipList.Search(key, ttl)
 }
@@ -111,6 +129,32 @@ func (skipList *TTLSkipList) DeleteExpiredKeys() []string {
 	}
 
 	return deletedKeys
+}
+
+/*
+***********************
+SCORE SKIPLIST
+***********************
+*/
+
+func (skipList *ScoreSkipList) Search(key string, score int) bool {
+	return skipList.SkipList.Search(key, score)
+}
+
+func (skipList *ScoreSkipList) Insert(key string, score int) error {
+	return skipList.SkipList.Insert(key, score)
+}
+
+func (skipList *ScoreSkipList) Delete(key string, score int) error {
+	return skipList.SkipList.Delete(key, score)
+}
+
+func (skipList *ScoreSkipList) Update(key string, score int) error {
+	return skipList.SkipList.Update(key, score)
+}
+
+func (skipList *ScoreSkipList) FindUpperLevelPrevElem(prevNode *Node[int]) *Node[int] {
+	return skipList.SkipList.FindUpperLevelPrevElem(prevNode)
 }
 
 /*

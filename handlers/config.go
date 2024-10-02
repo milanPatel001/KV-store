@@ -31,16 +31,23 @@ type Cache struct {
 	SkipList         *utils.TTLSkipList
 }
 
+type CurrentSnapshot struct {
+	DoneChannel chan int
+	TimePeriod  uint32
+}
+
 var ConnectionMap = make(map[string]*Connection)
+var SnapShotMap = make(map[uint8]CurrentSnapshot)
+
 var Caches []Cache
 var CurrentCache *Cache
-var DefaultCacheNum uint8
+var DefaultCacheNum uint8 // total number of caches
 var DefaultSkipListMaxHeight uint8
 
 func SetUpCaches(cacheNum uint8, skipListMaxHeight uint8) error {
 
 	if cacheNum < 1 || skipListMaxHeight < 10 {
-		return fmt.Errorf("Cache Number should be >1 and skipListMaxHeight should be > 10")
+		return fmt.Errorf("Cache Number should be >1 and skipListMaxHeight should be >10")
 	}
 
 	DefaultCacheNum = cacheNum

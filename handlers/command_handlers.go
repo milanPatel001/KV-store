@@ -16,7 +16,7 @@ func SwitchCases(command string, args []string, connectionObj *Connection, conn 
 
 	if inTransaction && command != "COMMIT" && command != "DISCARD" && command != "BEGIN" {
 		connectionObj.TransactionQueue = append(connectionObj.TransactionQueue, Statement{command, args})
-		conn.Write([]byte(utils.SerializeInput("TR", ">> QUEUED")))
+		conn.Write([]byte(utils.SerializeOutput("TR", ">> QUEUED")))
 		return
 	}
 
@@ -30,9 +30,9 @@ func SwitchCases(command string, args []string, connectionObj *Connection, conn 
 	}
 
 	if err != nil {
-		conn.Write([]byte(utils.SerializeInput("ERR", err.Error())))
+		conn.Write([]byte(utils.SerializeOutput("ERR", err.Error())))
 	} else {
-		conn.Write([]byte(utils.SerializeInput(command, successMsg)))
+		conn.Write([]byte(utils.SerializeOutput(command, successMsg)))
 	}
 }
 
@@ -70,9 +70,111 @@ func CommandHandler(command string, args []string) (string, error) {
 		}
 
 		return strconv.Itoa(num), nil
+
+	case "SAVE":
+		if err := SaveCacheHandler(args); err != nil {
+			return "", err
+		}
+
+		return ">> SUCCESS", nil
+
+	case "RETAIN":
+		if err := RetainCacheHandler(args); err != nil {
+			return "", err
+		}
+
+		return ">> SUCCESS", nil
+	case "HALT":
+		if err := StopSnapshot(args); err != nil {
+			return "", err
+		}
+
+		return ">> SUCCESS", nil
 	}
 
 	return "", fmt.Errorf("Unknown command !!!")
+}
+
+func SaveCacheHandler(args []string) error {
+	// SAVE [cacheIndex] [time]
+
+	// NOTE : serialize input from client and put default value of current Cache for SAVE if only "SAVE" is entered by client.
+
+	// CASE no time -> save cache[cacheIndex] in dump.gob file
+	// CASE time -> save cache[cacheIndex] in "snapshot+cachIndex".gob file periodically (time in seconds)
+
+	if len(args) == 0 {
+		return utils.StoreCacheGobEncoded("dump", CurrentCache.Data)
+	}
+
+	num, err := strconv.Atoi(args[0])
+
+	if err != nil {
+		return err
+	}
+
+	if num < 0 || num >= int(DefaultCacheNum) {
+		return fmt.Errorf("Cache index should lie in the range of [0, %v]", DefaultCacheNum)
+	}
+
+	var period int
+
+	if len(args) > 1 {
+		period, err = strconv.Atoi(args[1])
+
+		if err != nil {
+			return err
+		}
+	}
+
+	var fileName string
+
+	// Time of atleast 60 seconds is required to be considered for periodic snapshots
+	if period <= 60 {
+		fileName = fmt.Sprintf("dump_%v", num)
+		return utils.StoreCacheGobEncoded(fileName, Caches[num].Data)
+	}
+
+	currentTime := strconv.Itoa(int(time.Now().Unix()))
+	fileName = fmt.Sprintf("snapshot_%v_%v", currentTime, num)
+
+	return SetSnapshots(fileName, uint8(num), uint32(period))
+}
+
+/*
+RETAIN [fileName] (fileName default : dump.gob)
+Overwrites current cache and skiplist
+*/
+func RetainCacheHandler(args []string) error {
+
+	var fileName string = "dump"
+
+	if len(args) > 0 {
+		fileName = args[0]
+	}
+
+	m, err := utils.DecodeGobFile[string, CacheItem](fileName)
+
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+
+	CurrentCache = &Cache{Data: m, SkipList: utils.CreateTTLSkipList(48)}
+
+	CurrentCache.Mutex.Lock()
+	defer CurrentCache.Mutex.Unlock()
+
+	t := uint32(time.Now().Unix())
+
+	for k, v := range m {
+		if v.TTL > t {
+			CurrentCache.SkipList.Insert(k, v.TTL)
+		}
+	}
+
+	return nil
+
 }
 
 func DelHandler(args []string) error {
@@ -193,4 +295,59 @@ func SetCurrentCacheHandler(args []string) (int, error) {
 
 	CurrentCache = &Caches[num]
 	return num, nil
+}
+
+func SetSnapshots(fileName string, cacheIndex uint8, t uint32) error {
+	_, exists := SnapShotMap[cacheIndex]
+
+	if exists {
+		return fmt.Errorf("Snapshot for current index already running. Use HALT [cacheIndex] to stop snapshotting and then create new one!!!")
+	}
+
+	SnapShotMap[cacheIndex] = CurrentSnapshot{DoneChannel: make(chan int), TimePeriod: t}
+
+	go runSnapShot(fileName, cacheIndex, t, SnapShotMap[cacheIndex].DoneChannel)
+
+	return nil
+}
+
+func runSnapShot(fileName string, cacheIndex uint8, t uint32, doneChannel <-chan int) {
+	for {
+		select {
+		case <-time.Tick(time.Second * time.Duration(t)):
+			fmt.Printf("Snapshotted cacheIndex: %v!!!", cacheIndex)
+			utils.StoreCacheGobEncoded(fileName, Caches[cacheIndex].Data)
+		case <-doneChannel:
+			fmt.Printf("Snapshotting stopped for cacheIndex: %v!!!", cacheIndex)
+			return
+		}
+	}
+}
+
+func StopSnapshot(args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("HALT: Missing cacheIndex")
+	}
+
+	cacheIndex, err := strconv.Atoi(args[0])
+
+	if err != nil {
+		return err
+	}
+
+	if cacheIndex < 0 || cacheIndex > int(DefaultCacheNum) {
+		return fmt.Errorf("Cache index should lie in the range of [0, %v]", DefaultCacheNum)
+	}
+
+	snap, exists := SnapShotMap[uint8(cacheIndex)]
+
+	if !exists {
+		return fmt.Errorf("Snapshot is not set for cacheIndex: %v", cacheIndex)
+
+	}
+
+	snap.DoneChannel <- 1
+	delete(SnapShotMap, uint8(cacheIndex))
+
+	return nil
 }
