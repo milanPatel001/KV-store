@@ -7,11 +7,73 @@ import (
 	"github.com/cespare/xxhash/v2"
 )
 
+type AdaptiveScalableBloomFilter struct {
+	Filters         []*BloomFilter
+	CurrentNumItems uint
+	MaxCapacity     uint // combined capacity of all filters
+	ErrorRate       float64
+}
+
 type BloomFilter struct {
 	Arr               []byte
 	EstimatedCapacity uint
 	HashFuncNum       uint8
 }
+
+func CreateAdaptiveBloomFilter(capacity uint, errorRate float64) *AdaptiveScalableBloomFilter {
+	var abl AdaptiveScalableBloomFilter
+
+	abl.MaxCapacity = capacity
+	abl.CurrentNumItems = 0
+	abl.ErrorRate = errorRate
+	abl.Filters = append(abl.Filters, CreateBloomFilter(capacity, errorRate))
+
+	return &abl
+}
+
+func (abl *AdaptiveScalableBloomFilter) DoesExist(key string) bool {
+	if key == "" {
+		return false
+	}
+
+	for i := len(abl.Filters) - 1; i >= 0; i-- {
+		if abl.Filters[i].DoesExist(key) {
+			return true
+		}
+	}
+
+	return false
+
+}
+
+func (abl *AdaptiveScalableBloomFilter) Set(key string) error {
+	if key == "" {
+		return fmt.Errorf("Key can't be empty !!!")
+	}
+
+	if abl.CurrentNumItems >= abl.MaxCapacity {
+		cap := abl.Filters[0].EstimatedCapacity
+
+		abl.MaxCapacity = abl.MaxCapacity * 2
+		abl.Filters = append(abl.Filters, CreateBloomFilter(cap, abl.ErrorRate))
+	}
+
+	if err := abl.Filters[len(abl.Filters)-1].Set(key); err != nil {
+
+		return err
+	}
+
+	abl.CurrentNumItems++
+
+	return nil
+
+}
+
+/*
+***************************
+Plain Bloom Filter Methods
+***************************
+*/
 
 func CreateBloomFilter(capacity uint, errorRate float64) *BloomFilter {
 
@@ -92,7 +154,6 @@ func GetBloomFilterArrSize(maxCapacity uint) int {
 	byteConv := math.Ceil(float64(maxCapacity) / 8)
 
 	return int(byteConv)
-
 }
 
 // Decide on creating new sub-stack of filter if whole arr is filled
