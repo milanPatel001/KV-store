@@ -38,6 +38,7 @@ type CurrentSnapshot struct {
 
 var ConnectionMap = make(map[string]*Connection)
 var SnapShotMap = make(map[uint8]CurrentSnapshot)
+var BloomFilterMap = make(map[string]utils.BloomFilter)
 
 var Caches []Cache
 var CurrentCache *Cache

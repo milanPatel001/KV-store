@@ -7,14 +7,14 @@
 - Transaction - BEGIN, COMMIT and DISCARD
 - Rollback for transaction
 - Multiple caches (default 16)
+- Sorted Sets
 - Saving/Retrieving of caches on disk
+- Bloom Filter
 
 ### Will Add
 - LRU eviction for volatile keys on reaching threshold
-- Bloom Filter
 - Double Ended Queue
 - Geospatial Index
-- Sorted Sets
 - Pub/Sub Channels (non-durable)
 - Help for all the available commands
 etc...
