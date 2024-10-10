@@ -12,7 +12,7 @@ import (
 	"github.com/joho/godotenv"
 )
 
-var CommandsWithRequiredArgs []string = []string{"SET", "DEL", "GET", "NUM"}
+var CommandsWithRequiredArgs []string = []string{"SET", "DEL", "GET", "NUM", "BF_CREATE", "BF_ADD", "BF_EXISTS"}
 
 func main() {
 	err := godotenv.Load("../.env")

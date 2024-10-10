@@ -7,14 +7,19 @@ import (
 	"github.com/cespare/xxhash/v2"
 )
 
+type BloomFilter interface {
+	Set(key string) error
+	DoesExist(key string) bool
+}
+
 type AdaptiveScalableBloomFilter struct {
-	Filters         []*BloomFilter
+	Filters         []*PlainBloomFilter
 	CurrentNumItems uint
 	MaxCapacity     uint // combined capacity of all filters
 	ErrorRate       float64
 }
 
-type BloomFilter struct {
+type PlainBloomFilter struct {
 	Arr               []byte
 	EstimatedCapacity uint
 	HashFuncNum       uint8
@@ -75,20 +80,20 @@ Plain Bloom Filter Methods
 ***************************
 */
 
-func CreateBloomFilter(capacity uint, errorRate float64) *BloomFilter {
+func CreateBloomFilter(capacity uint, errorRate float64) *PlainBloomFilter {
 
 	requiredBits := math.Floor(-float64(capacity) * math.Log(errorRate) / (math.Ln2 * math.Ln2))
 	byteConv := GetBloomFilterArrSize(uint(requiredBits))
 
 	hashfuncNum := math.Floor(requiredBits / float64((capacity)) * math.Ln2)
 
-	bl := BloomFilter{EstimatedCapacity: capacity, HashFuncNum: uint8(hashfuncNum)}
+	bl := PlainBloomFilter{EstimatedCapacity: capacity, HashFuncNum: uint8(hashfuncNum)}
 	bl.Arr = make([]byte, int(byteConv))
 
 	return &bl
 }
 
-func (bl *BloomFilter) Set(key string) error {
+func (bl *PlainBloomFilter) Set(key string) error {
 	if key == "" {
 		return fmt.Errorf("Key can't be empty !!!")
 	}
@@ -104,7 +109,7 @@ func (bl *BloomFilter) Set(key string) error {
 	return nil
 }
 
-func (bl *BloomFilter) DoesExist(key string) bool {
+func (bl *PlainBloomFilter) DoesExist(key string) bool {
 
 	for i := 0; i < int(bl.HashFuncNum); i++ {
 		hash := xxhash.Sum64([]byte(key)) + uint64(i)*0x9E3779B97F4A7C15
@@ -120,7 +125,7 @@ func (bl *BloomFilter) DoesExist(key string) bool {
 }
 
 // bitIndex starting from 0
-func (bl *BloomFilter) SetBit(bitIndex int) error {
+func (bl *PlainBloomFilter) SetBit(bitIndex int) error {
 	if len(bl.Arr)*8 <= bitIndex {
 		return fmt.Errorf("Index out of bounds !!!")
 	}
@@ -133,7 +138,7 @@ func (bl *BloomFilter) SetBit(bitIndex int) error {
 	return nil
 }
 
-func (bl *BloomFilter) GetBit(bitIndex int) bool {
+func (bl *PlainBloomFilter) GetBit(bitIndex int) bool {
 	if len(bl.Arr)*8 <= int(bitIndex) {
 		return false
 	}
@@ -155,5 +160,3 @@ func GetBloomFilterArrSize(maxCapacity uint) int {
 
 	return int(byteConv)
 }
-
-// Decide on creating new sub-stack of filter if whole arr is filled

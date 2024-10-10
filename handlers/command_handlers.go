@@ -39,7 +39,6 @@ func SwitchCases(command string, args []string, connectionObj *Connection, conn 
 func CommandHandler(command string, args []string) (string, error) {
 	switch command {
 	case "SET":
-
 		if err := SetHandler(args); err != nil {
 			return "", err
 		}
@@ -53,15 +52,37 @@ func CommandHandler(command string, args []string) (string, error) {
 			return "", err
 		}
 
-		return ">> " + val, nil
+		return fmt.Sprintf(">> %v", val), nil
 
 	case "DEL":
-
 		if err := DelHandler(args); err != nil {
 			return "", err
 		}
 
 		return ">> SUCCESS", nil
+
+	case "BF_CREATE":
+		if err := BloomFilterCreationHandler(args); err != nil {
+			return "", err
+		}
+
+		return ">> SUCCESS", nil
+
+	case "BF_ADD":
+		if err := BloomFilterAddHandler(args); err != nil {
+			return "", err
+		}
+
+		return ">> SUCCESS", nil
+
+	case "BF_EXISTS":
+		val, err := BloomFilterExistsHandler(args)
+
+		if err != nil {
+			return "", err
+		}
+
+		return fmt.Sprintf(">> %v", val), nil
 
 	case "NUM":
 		num, err := SetCurrentCacheHandler(args)
@@ -84,6 +105,7 @@ func CommandHandler(command string, args []string) (string, error) {
 		}
 
 		return ">> SUCCESS", nil
+
 	case "HALT":
 		if err := StopSnapshot(args); err != nil {
 			return "", err
@@ -350,4 +372,86 @@ func StopSnapshot(args []string) error {
 	delete(SnapShotMap, uint8(cacheIndex))
 
 	return nil
+}
+
+// BF_CREATE name [error_rate] [capacity] [SCALABLE -> T/F]
+func BloomFilterCreationHandler(args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("BF_CREATE : Missing name of bloom filter")
+	}
+
+	errorRate := 0.01
+	cap := 1000
+	key := args[0]
+	scalable := false
+
+	var err error
+
+	if len(args) > 1 {
+		errorRate, err = strconv.ParseFloat(args[1], 32)
+		if err != nil {
+			return err
+		}
+	}
+
+	if len(args) > 2 {
+		cap, err = strconv.Atoi(args[2])
+		if err != nil {
+			return err
+		}
+	}
+
+	if len(args) > 3 {
+		if args[3] == "T" || args[3] == "TRUE" {
+			scalable = true
+		}
+	}
+
+	if scalable {
+		BloomFilterMap[key] = utils.CreateAdaptiveBloomFilter(uint(cap), errorRate)
+	} else {
+		BloomFilterMap[key] = utils.CreateBloomFilter(uint(cap), errorRate)
+	}
+
+	return nil
+
+}
+
+// BF_ADD name key
+func BloomFilterAddHandler(args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("BF_ADD : Missing name of the bloom filter and Value")
+	}
+
+	if len(args) == 1 {
+		return fmt.Errorf("BF_ADD : Missing Value")
+	}
+
+	val, exists := BloomFilterMap[args[0]]
+
+	if !exists {
+		return fmt.Errorf("BF_ADD : Wrong name of the bloom filter")
+	}
+
+	return val.Set(args[1])
+
+}
+
+// BF_EXISTS name key
+func BloomFilterExistsHandler(args []string) (bool, error) {
+	if len(args) == 0 {
+		return false, fmt.Errorf("BF_EXISTS : Missing name of the bloom filter and Value")
+	}
+
+	if len(args) == 1 {
+		return false, fmt.Errorf("BF_EXISTS : Missing Value")
+	}
+
+	val, exists := BloomFilterMap[args[0]]
+
+	if !exists {
+		return false, fmt.Errorf("BF_EXISTS : Wrong name of the bloom filter")
+	}
+
+	return val.DoesExist(args[1]), nil
 }
